@@ -34,6 +34,8 @@
 
 > **The next question: what components does Kubernetes consist of? You can run Kubernetes on a single node, but, in production, it usually consists of one or several masters and non-master nodes**
 
+![Architecture](static/Kubernetes-cluster.png?raw=true "Title")
+
 > A Kubernetes master runs Control Plane responsible for maintaining the desired state of the cluster we discussed above. In its turn, the Kubernetes Control Plane consists of several components with unique roles (see the image below):
 
 | Component | Description |
@@ -201,3 +203,435 @@
 
 ### K8s Talent May Be Expensive
 > If you want to get up and running with Kubernetes fast, you may not have time to develop in-house Kubernetes expertise. You’ll probably go for established Kubernetes experts. That may pose a problem because the K8s talent is not cheap. For example, according to PayScale, the average salary for the skill “Kubernetes” is $116,000 (June 2019). Budgets of many medium and small enterprises are simply too small to allow hiring established Kubernetes experts at this pay rate.
+### L2:
+
+
+### L3:
+#### Generate Template:
+```$xslt
+Example:
+pod type:
+kubectl run --generator=run-pod/v1 mypod --dry-run --image=nginx -o yaml
+
+deployment:
+kubectl create deploy nginx — image=nginx — dry-run -o yaml > nginx-ds.yaml
+
+service:
+kubectl expose pod hello-world — type=NodePort — name=example-service
+kubectl expose deployment hello-world — type=NodePort — name=example-service
+
+generate template from existing yaml:
+kubectl get deployment “deployment name” -n “namespace” -o yaml > “newdeployment.yaml
+```
+
+#### Controllers
+>> **init container pod**: inside pods/ directory, define initContainers: in addition to containers:, until and unless init container not complete its task main container doesn't start.
+
+>> **Controllers**: abstraction layer above pods to control the pods.
+```
+### Types of Controllers
+replicaset
+deployment
+daemonset
+job
+cronjob
+statefulset
+```
+
+> **ReplicaSet**: Provide features like autohealing, scaling, control group of pods.
+```
+apiVersion: apps/v1
+kind: ReplicaSet // replicaset definition
+metadata:
+  name: frontend
+  labels:
+    app: sampleapp
+    tier: frontend
+spec:
+  replicas: 3
+  selector:  // select pods based upon labels
+    matchLabels:
+      tier: frontend
+  template:  // pod definition inside template
+    metadata:
+      labels:
+        tier: frontend
+    spec:
+      containers:
+      - name: apache
+        image: httpd
+
+
+Scaling a ReplicaSet by command line: kubectl scale rs frontend --replicas=4
+```
+
+> **Deployment**: Provide features like autohealing, scaling, control group of pods similar to replicaset. Also provide **rolling update** feature, (without downtime update resource).
+```
+apiVersion: apps/v1
+kind: Deployment // deployment definition
+metadata:
+  name: mydeployment
+  labels:
+    app: myapp
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: myapp
+  template: // pod definition inside template
+    metadata:
+      labels:
+        app: myapp
+    spec:
+      containers:
+      - name: myapp-cont
+        image: lerndevops/samplepyapp:v1
+        ports:
+        - containerPort: 3000
+```
+![RollingUpdate1](images/rollingupdate.png?raw=true "Title")
+![RollingUpdate2](images/rollingupdate1.png?raw=true "Title")
+> Deployment conroller create replicaset by default while creation. In other words, deployment controller controls the replicaset with rolling updates. Pods Name: <Deployment Name>-<ReplicaSet_ID>-<Pod ID>. See file deployment-ex3.yml. We have used service to map the port of the pod with outside world.
+```
+kind: Service
+apiVersion: v1
+metadata:
+   name: kubeserve-svc
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+      protocol: TCP
+      targetPort: 80
+  selector: 
+    app: kubeserve
+
+```
+
+> **Daemonset Controller**: Control group of pods, autohealing but restrictive on scaling. Deploy pod on each of the node. It deploy on the new node automatically once it is added. Also allow Rolling updates.
+```
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: mydaemonset
+  labels:
+     app: test
+     env: prod
+spec:
+  selector:
+     matchLabels:
+       app: test
+  template:
+     metadata:
+      name: mydaemonsetpod
+      labels:
+        app: test
+     spec:
+#       nodeSelector:
+#          env: prodd
+#       nodeName: kdube-node
+       containers:
+        - name: mydaemonsetcont
+          image: lerndevops/tomcat:8.5.47
+          ports:
+           - containerPort: 8080
+          resources:
+            limits:
+              memory: 200Mi
+            requests:
+              cpu: 100m
+              memory: 200Mi
+
+```
+
+> **Job Controller**: Used for Batch Job. The job runs and status is completed. 
+```
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: countdown
+spec:
+  backoffLimit: 4  # Number of times the job restarts if there is an error.
+  template:
+    metadata:
+      name: countdown
+    spec:
+      containers:
+      - name: counter
+        image: centos:7
+        command:
+         - "bin/bash"
+         - "-c"
+         - "for i in 9 8 7 6 5 4 3 2 1 ; do echo $i ; done"
+      restartPolicy: Never
+
+```
+
+> **CronJob Controller**: Schedule the job automatically.
+```
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: hello
+spec:
+  schedule: "*/1 * * * *" #cron
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          name: mypod
+          labels:
+            app: myapp
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: hello
+            image: busybox
+            args:
+            - /bin/sh
+            - -c
+            - date; echo Hello from the Kubernetes cluster
+```
+### L4:
+#### Service
+> **Service**: This is actually not a controller. Service is mainly used to enable access to multiple pods running inside the container. 
+```
+Services are of 3 types: 
+clusterIP
+NodePort
+LoadBalancer
+```
+> **ClusterIP**: Internal load balancer which forward request to multiple pods. (Accessible inside cluster only).
+```
+kind: Service
+apiVersion: v1
+metadata:
+   name: mysvc
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3000
+      protocol: TCP
+      targetPort: 3000
+  selector: 
+    app: myapp
+```
+> **NodePort**: We access pod using nodeIP:nodeport. Maps the port of pod which the port of each node. Uses clusterIP for load balancer purposes. The main disadvantage is the IP address given to client, if the node is down, the client will not be able to access pods in other nodes. Also, need to mantain IP address given to client.
+Use port range 30000-30767
+```
+kind: Service
+apiVersion: v1
+metadata:
+   name: mysvc1
+spec:
+  type: NodePort
+  ports:
+    - port: 3000
+      protocol: TCP
+      targetPort: 3000
+  selector: 
+    app: myapp
+```
+
+> **LoadBalancer**: External load balancer. Can be done 2 types: Use a manual load balancer and map all IP addresses to it or automatic (using kubernetes one, for this need to use PaaS one, need some kubernetes permissions). **One service per load balancer**.
+```
+kind: Service
+apiVersion: v1
+metadata:
+   name: mysvc1
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 3000
+      protocol: TCP
+      targetPort: 3000
+  selector: 
+    app: myapp
+```
+
+![Load Balancer](images/loadbalancer.png?raw=true "Title")
+
+
+#### Scheduling
+
+> **Manual Scheduling**: Schedulers decide which pod to be deployed on which node. Be default this process is automatic but we can specify node in yml file. In this scenerio, we are providing definition to apiServer and apiServer won't contact schedulers. 
+```
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: mydaemonset
+  labels:
+     app: test
+     env: prod
+spec:
+  selector:
+     matchLabels:
+       app: test
+  template:
+     metadata:
+      name: mydaemonsetpod
+      labels:
+        app: test
+     spec:
+       nodeSelector:
+          env: prodd
+          nodeName: kdube-node
+       containers:
+        - name: mydaemonsetcont
+          image: lerndevops/tomcat:8.5.47
+          ports:
+           - containerPort: 8080
+          resources:
+            limits:
+              memory: 200Mi
+            requests:
+              cpu: 100m
+              memory: 200Mi
+```
+If you want to deploy on only one node.
+```
+spec:
+          nodeName: kdube-node
+```
+nodeSelector is similar to selector used to select pods.
+```
+nodeSelector:
+          env: prodd
+          nodeName: kdube-node
+```
+We can use existing labels or simply add and use new labels for node.
+```
+kubectl get nodes  --show-labels
+```
+
+Sometimes we want to reject the pods on a particular node or a group of nodes. We use **taints** and **tolerations** for it.
+
+
+```$xslt
+taints: apply/create taint on a node or a group of nodes. 
+key = value:effect (effect can be NoSchedule/preferSchedule/NoExecute)
+eg. size = large:noSchedule
+
+kubectl taint node node1 size=large:NoSchedule
+```
+```$xslt
+tolerations: schedule a pod that satisfies the condition apply on node.
+```
+Apply a condition: taint, schedule a pod based on condition: toleration. For eg. Once the condition is set, the scheduler will deploy only those pods with tolerations size=large
+
+```
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: mydaemonset
+  labels:
+     app: test
+     env: prod
+spec:
+  selector:
+     matchLabels:
+       app: test
+  template:
+     metadata:
+      name: mydaemonsetpod
+      labels:
+        app: test
+     spec:
+       tolerations:
+        - key: size
+          operator: Equal
+          value: large
+          effect: NoSchedule
+       containers:
+        - name: mydaemonsetcont
+          image: lerndevops/tomcat:8.5.47
+          ports:
+           - containerPort: 8080
+          resources:
+            limits:
+              memory: 200Mi
+            requests:
+              cpu: 100m
+              memory: 200Mi
+```
+If you add taint to a node, already running pods who don't follow taint will get delete in case of **NoExecute** while **NoSchedule** work on newly scheduled pods.
+
+If you want to delete a taint, add '-' at the last of the command executed to set the taint.
+```$xslt
+kubectl taint node node1 size=large:NoSchedule-
+```
+
+#### Dashboard
+
+See dashboard/readme.md
+
+#### HPA
+Used for auto scaling.
+We need metrics-server for this. 
+```$xslt
+Use following commands to get utilization.
+kubectl top pods
+kubectl top nodes
+```
+
+```
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  labels:
+    app: nginx
+spec:
+  replicas: 1 # number of replicas
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      name: nginxpod
+      labels:
+        app: nginx
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:latest
+          resources:
+            limits:
+              cpu: 100m ## 10% of 1 core on your system
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service
+spec:
+  type: ClusterIP  ## this is default if we do not type in service definition
+  selector:
+    app: nginx
+  ports:
+   - protocol: TCP
+     port: 80
+     targetPort: 80
+
+---
+
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: nginx-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: nginx
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 10
+```
+Use Apache benchmark to do load test. Details inside controllers/hpa/README.md
+
+### L5:
+#### Managing Storage: Kubernetes
