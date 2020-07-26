@@ -631,7 +631,8 @@ spec:
   maxReplicas: 10
   targetCPUUtilizationPercentage: 10
 ```
-Use Apache benchmark to do load test. Details inside controllers/hpa/README.md
+> Use Apache benchmark to do load test. Details inside controllers/hpa/README.md
 
 ### L5:
 #### Managing Storage: Kubernetes
+> **Empty dir volume**: 
