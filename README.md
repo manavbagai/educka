@@ -55,25 +55,41 @@
 
 > As the image above suggests, Kubernetes architecture is quite complex. For a more in-depth overview of the Kubernetes architecture, consider reading the Kubernetes Official docs.
 
+## Kube Control Manager:
+Runs the controller logic that makes sure the actual cluster state matches the desired state defined in Kubernetes resources.
+
+### Responsibilities:
+Each controller is a loop that watches the API server and reacts accordingly. Examples:
+
+**Deployment Controller** – ensures the desired number of pods are running
+
+**Node Controller** – watches node health and updates node status
+
+**ReplicaSet Controller** – ensures correct number of pod replicas exist
+
+Job Controller, Endpoint Controller, etc.
+
+The kube-controller-manager runs all built-in controllers in a single process for efficiency.
+
 ## Flow
 Let’s walk through what happens when you create a deployment (e.g., kubectl apply -f deployment.yaml):
 
-1. User Sends API Request
+**1. User Sends API Request**
 You run:
 kubectl apply -f deployment.yaml
 kubectl sends this request to the kube-apiserver.
 
-2. API Server Receives the Request
+**2. API Server Receives the Request**
 Validates the deployment spec.
 Stores the desired state in etcd (e.g., 3 replicas of nginx).
 
-3. kube-controller-manager Acts
+**3. kube-controller-manager Acts**
 The Deployment Controller detects the new deployment via a watch on the API server.
 It creates a ReplicaSet object.
 The ReplicaSet controller then creates 3 unscheduled Pod objects (they have no assigned node yet).
 These unscheduled pods are also stored in etcd.
 
-4. kube-scheduler Picks Nodes
+**4. kube-scheduler Picks Nodes**
 Watches for unscheduled pods via the API server.
 For each unscheduled pod:
 Evaluates all nodes
@@ -82,7 +98,7 @@ Ranks remaining nodes (e.g., based on least loaded)
 Binds the pod to the best node
 This “binding” updates the pod object with .spec.nodeName.
 
-5. kubelet on Node Executes the Pod
+**5. kubelet on Node Executes the Pod**
 On the chosen node, kubelet sees the pod assigned to it (via the API server).
 Pulls the container image.
 Runs the container using the container runtime (e.g., containerd)
