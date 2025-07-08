@@ -613,7 +613,7 @@ kubectl taint node node1 size=large:NoSchedule-
 
 See dashboard/readme.md
 
-#### HPA
+#### HPA (Horizontal Pod Autoscaler):
 Used for auto scaling.
 We need metrics-server for this. 
 ```$xslt
