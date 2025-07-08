@@ -14,7 +14,7 @@ Storage classes helps in dynamic provisioning of PV. Which means that your devel
 
 Managed kubernetes services like AKS, EKS and GKE provides a default storage class which points to their respective disk storage. 
 
-## Creating a dynamic PVC on top of GKE 
+## Creating a dynamic PVC on top of GKE (Persistent Volume Claim):
 
 **PRE-REQUISITE** - A provisioned GKE cluster 
 
