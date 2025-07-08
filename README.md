@@ -683,4 +683,192 @@ spec:
 
 ### L5:
 #### Managing Storage: Kubernetes
-> **Empty dir volume**: 
+
+This guide covers common Kubernetes storage mechanisms: Volumes, ConfigMaps, Secrets, and PersistentVolumeClaims (PVCs), including their use in Deployments and StatefulSets.
+
+---
+
+##### Volumes
+
+Kubernetes volumes provide temporary or persistent storage to Pods.
+
+###### `emptyDir` Volume Example
+
+```yaml
+volumes:
+  - name: cache-volume
+    emptyDir: {}
+volumeMounts:
+  - mountPath: /cache
+    name: cache-volume
+```
+
+---
+
+##### 🔹 ConfigMap
+
+Inject non-sensitive configuration data into containers.
+
+###### Create and Use ConfigMap
+
+```bash
+kubectl create configmap app-config --from-literal=ENV=production
+```
+
+```yaml
+envFrom:
+  - configMapRef:
+      name: app-config
+```
+
+> Also mount as files using volumeMounts.
+
+---
+
+##### 🔹 Secrets
+
+Used to store sensitive data such as passwords, tokens, and keys.
+
+###### Create Secret from Environment Variables
+
+```bash
+kubectl create secret generic db-secret \
+  --from-literal=username=$DB_USER \
+  --from-literal=password=$DB_PASS
+```
+
+###### Use in Deployment
+
+```yaml
+env:
+  - name: DB_USER
+    valueFrom:
+      secretKeyRef:
+        name: db-secret
+        key: username
+  - name: DB_PASS
+    valueFrom:
+      secretKeyRef:
+        name: db-secret
+        key: password
+```
+
+> Secrets are base64-encoded. Use RBAC and encryption at rest.
+
+---
+
+##### PersistentVolumeClaim (PVC)
+
+PVCs request persistent storage that persists Pod restarts or rescheduling.
+
+###### Static PVC Example
+
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: manual-pv
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /data/manual
+```
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: manual-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+```
+
+###### Dynamic PVC Example
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dynamic-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: standard
+```
+
+###### PVC in a Deployment
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: nginx
+          image: nginx
+          volumeMounts:
+            - name: web-storage
+              mountPath: /usr/share/nginx/html
+      volumes:
+        - name: web-storage
+          persistentVolumeClaim:
+            claimName: dynamic-pvc
+```
+
+###### PVC in a StatefulSet
+
+```yaml
+volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 10Gi
+```
+
+> Each pod gets a dedicated volume: `data-app-0`, `data-app-1`, etc.
+
+---
+
+###### ✅ Access Modes
+
+| Access Mode     | Description                             |              |
+| --------------- | --------------------------------------- | ------------ |
+| `ReadWriteOnce` | Mounted as read-write by                | **one node** |
+| `ReadOnlyMany`  | Mounted as read-only by **many nodes**  |              |
+| `ReadWriteMany` | Mounted as read-write by **many nodes** |              |
+
+---
+
+##### 📌 Best Practices
+
+- Use StorageClass for dynamic provisioning
+- Use ConfigMaps for non-sensitive config
+- Use Secrets for credentials and tokens
+- Clean up unused PVCs
+- Use StatefulSets for stateful apps needing stable identity and storage
+
+---
+
